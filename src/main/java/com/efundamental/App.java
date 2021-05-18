@@ -73,18 +73,73 @@ public class App {
 
     }
 
-    public static void main(String[] args) {
-        System.setProperty("webdriver.gecko.driver", "C:\\geckodriver.exe");
+    public static void crawl(String url, String cssLink, String cssStrong, String preLink) {
+        // System.setProperty("webdriver.gecko.driver", "C:\\geckodriver.exe");
+
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--headless", "--window-size=1920,1200");
-        WebDriver driver = new ChromeDriver(options);
+        
+        List<Word> lstWords = new ArrayList<Word>();
+        for (int i = 0; i < 32; i++) {
+            String baseUrl = url + "&page=" + (i+1);
+            System.out.println("Open:" + baseUrl);
+            WebDriver driver = new ChromeDriver(options);
+            driver.get(baseUrl);
+            scroll(driver);
+            Document doc = Jsoup.parse(driver.getPageSource());
+            driver.close();
+            driver.quit();
+            Elements links = doc.select(cssLink);// ".v4-global-product-item a"); // a with href
+
+            for (Element link : links) {
+                String linkHref = link.attr("href");
+
+                linkHref = preLink + linkHref;
+                System.out.println("Open:" + linkHref);
+                driver = new ChromeDriver(options);
+                driver.get(linkHref);
+                scroll(driver, 500);
+                Document doc2 = Jsoup.parse(driver.getPageSource());
+                Elements strongs = doc2.select(cssStrong); // ".prod-content-box strong" a with href
+                for (Element strong : strongs) {
+                    Word word = new Word();
+                    if (!word.checkExist(strong.text(), lstWords)) {
+                        word.setUrl(linkHref);
+                        word.setWord(strong.text());
+                        lstWords.add(word);
+                    }
+                }
+
+                driver.close();
+                driver.quit();
+            }
+        }
+
+        String fileContents = "";
+        for (Word word : lstWords) {
+            fileContents += word.getWord() + "," + word.getUrl() + "\r\n";
+        }
+
+        try {
+            FileWriter myWriter = new FileWriter("words.csv");
+            myWriter.write(fileContents);
+            myWriter.close();
+            System.out.println("Successfully wrote to the file.");
+        } catch (IOException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+
         // comment the above 2 lines and uncomment below 2 lines to use Chrome
         // System.setProperty("webdriver.chrome.driver","G:\\chromedriver.exe");
         // WebDriver driver = new ChromeDriver();
 
         String baseUrl = "https://www.istegelsin.com/kategori/icecek_L/gazli-icecek_L0101";
 
-        driver.get(baseUrl);
+        String preLink = "https://www.istegelsin.com";
         // driver.manage().window().maximize();
 
         // WebElement elementOption = driver
@@ -101,55 +156,18 @@ public class App {
         // for (WebElement webElement : elements) {
         // webElement.click();
         // }
-        scroll(driver);
-        Document doc = Jsoup.parse(driver.getPageSource());
-        driver.close();
-        driver.quit();
-        Elements links = doc.select(".v4-global-product-item a"); // a with href
+
         // String linkHref = links.first().attr("href");
         // linkHref = "https://www.istegelsin.com" + linkHref;
         // WebDriver driverDetail = new ChromeDriver(options);
         // driverDetail.get(linkHref);
         // scroll(driverDetail, 50);
         // driverDetail.close();
-        List<Word> lstWords = new ArrayList<Word>();
 
-        for (Element link : links) {
-            String linkHref = link.attr("href");
+        String link = ".product-listing-item a";
+        preLink = "https://www.carrefoursa.com/";
+        String cssStrong = ".productInfo__Classifications strong";
 
-            linkHref = "https://www.istegelsin.com" + linkHref;
-            System.out.println("Open:" + linkHref);
-            driver = new ChromeDriver(options);
-            driver.get(linkHref);
-            scroll(driver, 500);
-            Document doc2 = Jsoup.parse(driver.getPageSource());
-            Elements strongs = doc2.select(".prod-content-box strong"); // a with href
-            for (Element strong : strongs) {
-                Word word = new Word();
-                if (!word.checkExist(strong.text(), lstWords)) {
-                    word.setUrl(linkHref);
-                    word.setWord(strong.text());
-                    lstWords.add(word);
-                }
-            }
-
-            driver.close();
-            driver.quit();
-        }
-        
-        String fileContents = "";
-        for (Word word : lstWords) {
-            fileContents += word.getWord() + "," + word.getUrl() + "\r\n";
-        }
-
-        try {
-            FileWriter myWriter = new FileWriter("words.csv");
-            myWriter.write(fileContents);
-            myWriter.close();
-            System.out.println("Successfully wrote to the file.");
-        } catch (IOException e) {
-            System.out.println("An error occurred.");
-            e.printStackTrace();
-        }
+        crawl("https://www.carrefoursa.com/icecekler/c/1409", link, cssStrong, preLink);
     }
 }
